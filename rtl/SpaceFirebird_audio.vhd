@@ -1,0 +1,471 @@
+--
+-- A simulation of Crazy Balloon
+--
+-- Mike Coates
+--
+-- version 001 initial release
+--         002 fix recurring sample play
+--
+library ieee;
+  use ieee.std_logic_1164.all;
+  use ieee.std_logic_unsigned.all;
+  use ieee.numeric_std.all;
+
+entity CRAZYBALLOON_AUDIO is
+  port (
+    I_HCNT            : in  std_logic;
+    --
+    I_MUSIC_ON        : in  std_logic;
+	 I_TONE				 : in  std_logic_vector(7 downto 0);
+	 I_LAUGH           : in  std_logic;
+	 I_EXPLODE         : in  std_logic;
+	 I_BREATH          : in  std_logic;
+	 I_APPEAR          : in  std_logic;
+    --
+	 I_RESET           : in  std_logic;
+	 --
+    O_AUDIO           : out std_logic_vector(15 downto 0);
+    CLK               : in  std_logic
+    );
+end;
+
+architecture RTL of CRAZYBALLOON_AUDIO is
+
+--	-- global
+--	signal AUDIO_CLK    : std_logic := '0';
+--	signal LAUGH_OUT    : std_logic_vector(7 downto 0) := (others => '0');
+--	signal WAVE_CLK     : std_logic := '0';
+--	-- Music --
+--	signal W_2CD_LDn    : std_logic := '0';
+--	signal W_2CD_Q      : std_logic_vector(7 downto 0) := (others => '0');
+--	signal W_4E_Q       : std_logic_vector(2 downto 0) := (others => '0');
+--	signal W_SDAT1      : std_logic_vector(7 downto 0) := (others => '0');
+--	signal W_SDAT2      : std_logic_vector(7 downto 0) := (others => '0');
+--	signal MUSIC_OUT    : std_logic_vector(7 downto 0) := (others => '0');
+--	-- Laugh 
+--	signal L_COUNT      : natural range 150 to 810 := 150;
+--	signal L_STOP       : natural range 150 to 810 := 150;
+--	signal W_4J_L_OUT   : std_logic := '0';
+--	signal R_COUNT      : natural range 0 to 480 := 0;
+--	signal W_4J_R_OUT   : std_logic := '0';
+--	-- SN74677 (Samples)	
+--	signal SAMPLE_OUT   : std_logic_vector(15 downto 0) := (others => '0');
+--	signal SAMPLE_DATA  : std_logic_vector(15 downto 0) := (others => '0');
+--	signal SAMPLE_ADDR  : std_logic_vector(15 downto 0) := (others => '1');
+--	signal SAMPLE_END   : std_logic_vector(15 downto 0) := (others => '0');
+--	signal SAMPLE_PLAY  : std_logic := '0';
+--	signal LAST_EXPLODE : std_logic := '0';
+
+begin
+--	--
+--	-- Generate work clock for audio (48Khz)
+--	--
+--	AudioClock : work.NE555V
+--	generic map(
+--	 freq_in  	=> 9987000,
+--	 freq_out 	=> 48000.0,
+--	 duty       => 0
+--	)
+--	port map(
+--		reset 	=> '1',
+--		clk_in 	=> CLK,
+--		clk_out 	=> AUDIO_CLK
+--	);
+--
+--	--
+--	-- Output final wave at this speed 
+--	--
+--	WaveClock : work.NE555V
+--	generic map(
+--	 freq_in  	=> 9987000,
+--	 freq_out 	=> 22050.0
+--	)
+--	port map(
+--		reset 	=> '1',
+--		clk_in 	=> CLK,
+--		clk_out 	=> WAVE_CLK
+--	);
+--
+--	--
+--	-- Music circuit (74LS273, 2 x 74LS161 & 74LS93)
+--	-- similar to one in galaxian, different divider chip
+--	--
+--	
+--	process (CLK)
+--	begin
+--		if rising_edge(CLK)  then
+--			if (W_2CD_Q = x"ff") then
+--				W_2CD_LDn <= '0' ;
+--			else
+--				W_2CD_LDn <= '1' ;
+--			end if;
+--		end if;
+--	end process;
+--
+--	process (I_HCNT)
+--	begin
+--		if rising_edge(I_HCNT) then  
+--			if (W_2CD_LDn = '0') then
+--				W_2CD_Q <= I_TONE;
+--			else
+--				W_2CD_Q <= W_2CD_Q + 1;
+--			end if;
+--		end if;
+--	end process;
+--
+--	process (W_2CD_LDn)
+--	begin
+--		if falling_edge(W_2CD_LDn) then
+--			W_4E_Q <= W_4E_Q + 1;
+--		end if;
+--	end process;
+--
+--	process (CLK)
+--	begin
+--		if rising_edge(CLK) then
+--			if AUDIO_CLK='1' then
+--				if I_MUSIC_ON='1' then
+--					MUSIC_OUT <= (W_SDAT1 + W_SDAT2);
+--				else
+--					MUSIC_OUT <= (others => '0');
+--				end if;
+--
+--				if W_4E_Q(1)='1' then
+--					W_SDAT1 <= x"2a";
+--				else
+--					W_SDAT1 <= (others => '0');
+--				end if;
+--
+--				if W_4E_Q(2)='1' then
+--					W_SDAT2 <= x"69";
+--				else
+--					W_SDAT2 <= (others => '0');
+--				end if;
+--			end if;
+--		end if;
+--	end process;
+--
+--	--
+--	-- Laugh circuit ( 2 x NE555V, first feeds reverse clipped sawtooth to second to act as VCO from about 80Hz to 320hz)
+--	--	
+--	-- left feeds 6.8hz square wave to 10uF cap and uses 100k resistor to discharge, high retains charge, drops to 0v when low. (over .01 second)
+--	-- we use counter to feed delay count to second NE555 to control frequency
+--	--
+--	-- original freq is 6.8hz, we want the count to loop that many times a second, so 4488Hz instead (660 count x 6.8 times a second)
+--	--
+--	
+--	left4J : work.NE555V
+--	generic map(
+--	 freq_out 	=> 4488.0
+--	)
+--	port map(
+--		reset 	=> '1',
+--		clk_in 	=> AUDIO_CLK,
+--		clk_out 	=> W_4J_L_OUT
+--	);
+--
+--	process (W_4J_L_OUT)
+--	begin
+--		if rising_edge(W_4J_L_OUT) then
+--			if L_COUNT = 150 then
+--				L_COUNT <= 810;
+--			else
+--				L_COUNT <= L_COUNT - 1;
+--			end if;
+--		end if;
+--	end process;
+--
+--	-- feed this second NE555 (change the count, change the frequency)
+--	process (WAVE_CLK)
+--	begin
+--		if rising_edge(WAVE_CLK) then			
+--			if I_LAUGH='0' then				-- I_LAUGH connected to reset
+--				R_COUNT    <= 0;
+--				W_4J_R_OUT <= '0';
+--			else
+--				if R_COUNT = L_STOP then
+--					R_COUNT <= 0;
+--					if L_COUNT > 480 then		-- Update stop point for next pass
+--						L_STOP <= 480;
+--					else 
+--						L_STOP <= L_COUNT;
+--					end if;
+--					W_4J_R_OUT <= not W_4J_R_OUT;
+--				else
+--					R_COUNT <= R_COUNT + 1;
+--				end if;
+--			end if;
+--		end if;
+--	end process;
+--	
+--	process (WAVE_CLK)
+--	begin
+--		if rising_edge(WAVE_CLK) then
+--			-- 4J right feeds to audio output
+--			if W_4J_R_OUT='1' then
+--				LAUGH_OUT <= x"99";
+--			else
+--				LAUGH_OUT <= (others => '0');
+--			end if;
+--		end if;
+--	end process;
+--	
+--	-- SN74677 (done using samples from my cab)
+--	
+--	-- 1 - Appear.wav          1 22050 0000-32A6
+--	-- 2 - Breath.wav          1 22050 32A7-7340
+--	-- 3 - Explode.wav         1 22050 7341-893E
+--
+--	SN74677_data : work.SAMPLE
+--	port map(
+--		clk   => WAVE_CLK,
+--		addr 	=> SAMPLE_ADDR,
+--		data 	=> SAMPLE_DATA
+--	);
+--	
+--	-- Sample trigger and output
+--	process (WAVE_CLK)
+--	begin
+--		if rising_edge(WAVE_CLK) then
+--			if I_RESET='0' then
+--				SAMPLE_PLAY <= '0';
+--			else
+--
+--				-- Explode seems to be one shot, over-rides all others
+--				if LAST_EXPLODE = '1' and I_EXPLODE='0' then
+--					SAMPLE_PLAY <= '1';
+--					SAMPLE_ADDR <= x"7341";
+--					SAMPLE_END  <= x"893E";
+--				else
+--					if SAMPLE_PLAY='0' then
+--						if I_EXPLODE='0' then
+--							SAMPLE_PLAY <= '1';
+--							-- select sample to play (order of priority, it sometimes overlaps them, but only one plays)
+--							if I_BREATH='1' then
+--								SAMPLE_ADDR <= x"32A7";
+--								SAMPLE_END  <= x"7340";						
+--							else
+--								if I_APPEAR='1' then
+--									SAMPLE_ADDR <= x"0000";
+--									SAMPLE_END  <= x"32A6";
+--								end if;
+--							end if;
+--						end if;
+--						SAMPLE_OUT <= (others => '0');
+--					else
+--						SAMPLE_OUT <= SAMPLE_DATA;
+--						
+--						if SAMPLE_ADDR = SAMPLE_END then
+--							SAMPLE_PLAY <= '0';
+--						else
+--							SAMPLE_ADDR <= SAMPLE_ADDR + '1';
+--						end if;				
+--					end if;
+--				end if;
+--
+--				-- Save last setting
+--				LAST_EXPLODE <= I_EXPLODE;
+--			end if;
+--		end if;
+--	end process;
+--		
+--	-- Audio Output - max 2 at once, so just add them together
+--	process (WAVE_CLK,MUSIC_OUT,LAUGH_OUT,SAMPLE_OUT)
+--	variable Music, Laugh, Sample : integer;
+--	begin
+--		if rising_edge(WAVE_CLK) then			
+--			Music  := to_integer(unsigned(MUSIC_OUT & "0000000"));
+--			Laugh  := to_integer(unsigned(LAUGH_OUT & "0000000"));
+--			Sample := to_integer(signed(SAMPLE_OUT));
+--		
+--			O_AUDIO <= std_logic_vector(to_signed(Music + Laugh + Sample,16));
+--		end if;
+--	end process;
+
+
+
+--module dkong_soundboard #(
+--	W_CLK_24576M_RATE = 24576000 // Hz
+--) (
+--	input         W_CLK_24576M,
+--	input         W_RESETn,
+--	input         W_W0_WE,
+--	input         W_W1_WE,
+--	input         W_CNF_EN,
+--	input   [6:0] W_6H_Q,
+--	input         W_5H_Q0,
+--	input   [1:0] W_4H_Q,
+--	input   [4:0] W_3D_Q,
+--	output reg [15:0] O_SOUND_DAT,
+--	output        O_SACK,
+--	output [11:0] ROM_A,
+--	input   [7:0] ROM_D,
+--);
+--
+--wire   [7:0]W_D_S_DAT;
+--
+--wire    [7:0]I8035_DBI;
+--wire    [7:0]I8035_DBO;
+--wire    [7:0]I8035_PAI;
+--wire    [7:0]I8035_PBI;
+--wire    [7:0]I8035_PBO;
+--wire    I8035_ALE;
+--wire    I8035_RDn;
+--wire    I8035_PSENn;
+--reg     I8035_CLK_EN;
+--wire    I8035_INTn;
+--wire    I8035_T0;
+--wire    I8035_T1;
+--wire    I8035_RSTn;
+--
+--// emulate 6 MHz crystal oscillor
+--localparam increment_width = 17; // increment_width = ceil(RATE_decimal_precision * 3.32192)
+--reg [increment_width:0] count; // one longer for overflow bit.
+--localparam int fraction_mutliplier = (1<<<increment_width);
+--// This somehow refuses to work:
+--localparam I8035_CLK_FRACTION = 6000000.0 / W_CLK_24576M_RATE;
+--
+--always @(posedge W_CLK_24576M) begin
+--	count <= {1'b0, count[increment_width - 1:0]} + (increment_width + 1)'(fraction_mutliplier * I8035_CLK_FRACTION);
+--end
+--assign I8035_CLK_EN = count[increment_width];
+--
+--I8035IP SOUND_CPU
+--(
+--	.I_CLK(W_CLK_24576M),
+--	.I_CLK_EN(I8035_CLK_EN),
+--	.I_RSTn(I8035_RSTn),
+--	.I_INTn(I8035_INTn),
+--	.I_EA(1'b1),
+--	.O_PSENn(I8035_PSENn),
+--	.O_RDn(I8035_RDn),
+--	.O_WRn(),
+--	.O_ALE(I8035_ALE),
+--	.O_PROGn(),
+--	.I_T0(I8035_T0),
+--	.O_T0(),
+--	.I_T1(I8035_T1),
+--	.I_DB(I8035_DBO),
+--	.O_DB(I8035_DBI),
+--	.I_P1(8'h00),
+--	.O_P1(I8035_PAI),
+--	.I_P2(I8035_PBO),
+--	.O_P2(I8035_PBI)
+--);
+--assign O_SACK = I8035_PBI[4];
+--//-------------------------------------------------
+--
+--dkong_sound Digtal_sound
+--(
+--	.I_CLK(W_CLK_24576M),
+--	.I_RST(W_RESETn),
+--	.I_DKJR(I_DKJR),
+--	.I8035_DBI(I8035_DBI),
+--	.I8035_DBO(I8035_DBO),
+--	.I8035_PAI(I8035_PAI),
+--	.I8035_PBI(I8035_PBI),
+--	.I8035_PBO(I8035_PBO),
+--	.I8035_ALE(I8035_ALE),
+--	.I8035_RDn(I8035_RDn),
+--	.I8035_PSENn(I8035_PSENn),
+--	.I8035_RSTn(I8035_RSTn),
+--	.I8035_INTn(I8035_INTn),
+--	.I8035_T0(I8035_T0),
+--	.I8035_T1(I8035_T1),
+--	.I_SOUND_DAT(I_DKJR ? ~W_3D_Q : {1'b1, W_3D_Q[3:0]}),
+--	.I_SOUND_CNT(I_DKJR ? {W_4H_Q[1],W_6H_Q[6:3],W_5H_Q0} : {2'b11,W_6H_Q[5:3],W_5H_Q0}),
+--	.O_SOUND_DAT(W_D_S_DAT),
+--	.ROM_A(ROM_A),
+--	.ROM_D(ROM_D)
+--);
+--
+--//----    DAC  I/F     ------------------------
+--
+--localparam SAMPLE_RATE = 48000;
+--localparam [9:0] clocks_per_sample = 10'(W_CLK_24576M_RATE / SAMPLE_RATE);
+--
+--wire signed[15:0] W_D_S_DATB;
+--
+--dkongjr_dac dac08
+--(
+--	.I_CLK(W_CLK_24576M),
+--	.I_DECAY_EN(~I8035_PBI[7]),
+--	.I_RESET_n(W_RESETn),
+--	.I_SND_DAT({2{~W_D_S_DAT[7],W_D_S_DAT[6:0]}}), // convert 8-bit unsigned to 16-bit signed.
+--	.O_SND_DAT(W_D_S_DATB)
+--);
+--
+--// Second order low pass filter. f= 1916 Hz, Q = 0.74.
+--wire signed[15:0] W_D_S_DATC;
+--iir_2nd_order filter
+--(
+--	.clk(W_CLK_24576M),
+--	.reset(~W_RESETn),
+--	.div(clocks_per_sample),
+--	.A2(-18'sd26649),
+--	.A3(18'sd11453),
+--	.B1(18'sd215),
+--	.B2(18'sd430),
+--	.B3(18'sd215),
+--   .in(W_D_S_DATB),
+--	.out(W_D_S_DATC)
+--);
+--
+--// Wav sound recored at 11025 Hz rate, 8 bit unsigned
+--dkong_wav_sound #(
+--	.CLOCK_RATE(W_CLK_24576M_RATE)
+--) Analog_sound (
+--	.I_CLK(W_CLK_24576M),
+--	.I_RSTn(W_RESETn),
+--	.I_SW(I_DKJR ? 3'b00 : {W_6H_Q[2:1],W_6H_Q[0] | use_emulated_sfx}),
+--	.O_ROM_AB(WAV_ROM_A)
+--);
+--
+--reg[9:0] audio_clk_counter;
+--reg audio_clk_en;
+--always@(posedge W_CLK_24576M, negedge W_RESETn) begin
+--	if(!W_RESETn)begin
+--		audio_clk_en <= 0;
+--		audio_clk_counter <= 0;
+--	end else begin
+--		if(audio_clk_counter != (clocks_per_sample - 1'd1)) begin
+--			audio_clk_en <= 0;
+--			audio_clk_counter <= audio_clk_counter + 1'd1;
+--		end else begin
+--			audio_clk_en <= 1;
+--			audio_clk_counter <= 0;
+--		end
+--	end
+--end
+--
+--wire signed[15:0] walk_out;
+--dk_walk #(
+--	.CLOCK_RATE(W_CLK_24576M_RATE),
+--	.SAMPLE_RATE(SAMPLE_RATE)
+--) walk (
+--	.clk(W_CLK_24576M),
+--	.I_RSTn(W_RESETn),
+--	.audio_clk_en(audio_clk_en),
+--	.walk_en(~W_6H_Q[0] & use_emulated_sfx),
+--	.out(walk_out)
+--);
+--
+--//  SOUND MIXER (WAV + DIG ) -----------------------
+--
+--wire signed[16:0] sound_mix =
+--	(I_DKJR ? 17'd0 : {{4{~WAV_ROM_DO[7]}}, WAV_ROM_DO[6:0],6'b0}) +
+--	{{4{W_D_S_DATC[15]}},W_D_S_DATC[14:2]} + {{6{W_D_S_DATC[15]}},W_D_S_DATC[14:4]} +
+--	{{2{walk_out[15]}},walk_out[14:0]};
+--
+--
+--always@(posedge W_CLK_24576M) begin
+--	O_SOUND_DAT <=
+--		sound_mix[16:15] == 2'b01 ? 16'h7FFF :
+--		sound_mix[16:15] == 2'b10 ? 16'h8000 :
+--		sound_mix[15:0];
+--end
+--
+--endmodule
+
+
+end architecture RTL;
