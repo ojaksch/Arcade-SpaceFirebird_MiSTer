@@ -5,6 +5,17 @@
 -- V 1.0 17/05/2026 - Mike Coates
 ---------------------------------------------------------------------------------
 
+n.b.
+
+in the settings "Autocoin" is similar to freeplay and is similar to a hardware device
+you can build for use on real arcade games.
+
+It recognises that 1 or 2 player start has been pressed and automatically adds the 
+required number of coins first.
+
+This can be used on games that do not have a freeplay selection, or where using it
+stops the attract mode from running.
+
                                 *** Attention ***
 
 ROMs are not included. In order to use this arcade, you need to provide the
